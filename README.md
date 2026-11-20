@@ -21,6 +21,12 @@ synthetic 2D, FFDM, and DBT images from multiple manufacturers.
 uv add git+https://github.com/beatrice-b-m/mg-aligner.git
 ```
 
+or with pip:
+
+```bash
+pip install git+https://github.com/beatrice-b-m/mg-aligner.git
+```
+
 The library has no runtime dependencies. Images are expected to be NumPy-style
 arrays.
 
