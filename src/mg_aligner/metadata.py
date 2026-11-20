@@ -49,52 +49,18 @@ class Laterality(_CoercibleEnum):
         return aliases.get(_normalized_text(value), cls.UNKNOWN)
 
 
-class ViewPosition(_CoercibleEnum):
-    """Mammographic view position."""
-
-    CC = "CC"
-    MLO = "MLO"
-    ML = "ML"
-    LM = "LM"
-    XCCL = "XCCL"
-    UNKNOWN = "UNKNOWN"
-
-    @classmethod
-    def _coerce_unknown(cls, value: Any) -> "ViewPosition":
-        match = re.search(r"\b(XCCL|MLO|CC|ML|LM)\b", _normalized_text(value))
-        return cls(match.group(1)) if match else cls.UNKNOWN
-
-
-class OrientationDirection(_CoercibleEnum):
-    """One component of DICOM Patient Orientation (0020,0020)."""
-
-    A = "A"
-    P = "P"
-    L = "L"
-    R = "R"
-    H = "H"
-    F = "F"
-    HL = "HL"
-    HR = "HR"
-    FL = "FL"
-    FR = "FR"
-    UNKNOWN = "UNKNOWN"
-
-    @classmethod
-    def _coerce_unknown(cls, value: Any) -> "OrientationDirection":
-        return cls.__members__.get(_normalized_text(value), cls.UNKNOWN)
-
-
 @dataclass(frozen=True)
 class PatientOrientation:
-    """DICOM Patient Orientation: the patient directions of the image axes.
+    """DICOM Patient Orientation (0020,0020): the patient directions of the image axes.
 
     ``row`` is the direction of increasing column index (+x) and ``column`` is
-    the direction of increasing row index (+y), following DICOM.
+    the direction of increasing row index (+y). Each is a code such as ``"P"``
+    or ``"FL"`` built from A, P, R, L, H, F, with the principal direction first
+    (DICOM PS3.3 C.7.6.1.1.1). Invalid components are stored as ``""``.
     """
 
-    row: OrientationDirection
-    column: OrientationDirection
+    row: str
+    column: str
 
     @classmethod
     def coerce(cls, value: Any) -> "PatientOrientation":
@@ -115,7 +81,12 @@ class PatientOrientation:
             row, column = value
         except (TypeError, ValueError):
             row = column = None
-        return cls(OrientationDirection.coerce(row), OrientationDirection.coerce(column))
+        return cls(_component(row), _component(column))
+
+
+def _component(value: Any) -> str:
+    text = _normalized_text(value)
+    return text if re.fullmatch(r"[APRLHF]{1,3}", text) else ""
 
 
 class FovRotation(_CoercibleEnum):

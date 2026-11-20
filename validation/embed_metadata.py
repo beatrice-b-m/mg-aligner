@@ -41,7 +41,7 @@ def status(alignment: Alignment) -> str:
 
 
 def compare(orientation, laterality, view, rotation, flip) -> dict:
-    by_orientation = Alignment.from_orientation(orientation, laterality, view)
+    by_orientation = Alignment.from_orientation(orientation, laterality)
     by_fov = Alignment.from_fov(rotation, flip, laterality)
     o, f = status(by_orientation), status(by_fov)
     if o == "known" and f == "known":

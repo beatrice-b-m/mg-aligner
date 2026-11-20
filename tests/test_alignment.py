@@ -53,39 +53,42 @@ def test_edges_must_be_on_different_axes():
 
 
 @pytest.mark.parametrize(
-    "orientation, laterality, view",
+    "orientation, laterality",
     [
-        (["A", "L"], "R", "CC"),
-        ("A\\FL", "R", "MLO"),
-        ("['A', 'F']", "L", "ML"),
+        (["A", "L"], "R"),  # CC: +y points medial, so lateral is at the top
+        ("A\\FL", "R"),  # MLO: principal letter F is inferior
+        ("['A', 'F']", None),  # H/F needs no laterality
     ],
 )
-def test_orientation_reference_cases(orientation, laterality, view):
-    assert Alignment.from_orientation(orientation, laterality, view).is_reference
+def test_orientation_reference_cases(orientation, laterality):
+    assert Alignment.from_orientation(orientation, laterality).is_reference
 
 
 def test_orientation_mirror_case():
     # Left CC displayed chest-wall-right: +x posterior, +y medial.
-    assert Alignment.from_orientation(["P", "R"], "L", "CC") == Alignment(Edge.RIGHT, Edge.TOP)
+    assert Alignment.from_orientation(["P", "R"], "L") == Alignment(Edge.RIGHT, Edge.TOP)
+
+
+def test_head_pointing_down_puts_superior_at_the_bottom():
+    assert Alignment.from_orientation(["P", "H"], "R") == Alignment(Edge.RIGHT, Edge.BOTTOM)
 
 
 def test_transposed_orientation_is_recognised_as_rotated():
-    alignment = Alignment.from_orientation(["L", "A"], "R", "CC")
-    assert alignment == Alignment(Edge.TOP, Edge.LEFT)
+    assert Alignment.from_orientation(["L", "A"], "R") == Alignment(Edge.TOP, Edge.LEFT)
 
 
 @pytest.mark.parametrize(
-    "orientation, laterality, view",
+    "orientation, laterality",
     [
-        (None, "L", "CC"),
-        ("garbage", "L", "CC"),
-        (["P", "R"], None, "CC"),
-        (["P", "R"], "L", "SPOT"),
-        (["A", "P"], "L", "CC"),  # both axes claim the chest wall
+        (None, "L"),
+        ("garbage", "L"),
+        (["P", "X"], "L"),
+        (["P", "R"], None),  # plain L/R needs laterality
+        (["A", "P"], "L"),  # both axes claim the chest wall
     ],
 )
-def test_orientation_incomplete_or_malformed_is_not_known(orientation, laterality, view):
-    assert not Alignment.from_orientation(orientation, laterality, view).is_known
+def test_orientation_incomplete_or_malformed_is_not_known(orientation, laterality):
+    assert not Alignment.from_orientation(orientation, laterality).is_known
 
 
 def test_fov_unsupported_rotation_is_unknown():

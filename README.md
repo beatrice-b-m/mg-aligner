@@ -55,7 +55,7 @@ box = alignment.realign_box(roi, height=ds.Rows, width=ds.Columns)
 | Method | Uses |
 | --- | --- |
 | `Alignment.from_metadata(record)` | Patient Orientation, falling back to Field of View attributes. Reads `ImageLateralityFinal` (EMBED), `ImageLaterality`, or `Laterality`. |
-| `Alignment.from_orientation(orientation, laterality, view)` | DICOM Patient Orientation, e.g. `["P", "L"]`, `"P\\L"`, or `"['P', 'L']"`. |
+| `Alignment.from_orientation(orientation, laterality)` | DICOM Patient Orientation, e.g. `["P", "L"]`, `"P\\L"`, or `"['P', 'L']"`, read by each value's principal (first) letter. Laterality is only needed for plain L/R values (CC-type views). |
 | `Alignment.from_fov(rotation, horizontal_flip, laterality)` | DICOM Field of View Rotation (0 or 180) and Horizontal Flip. |
 | `Alignment(chest_wall, superior)` | Explicit edges, e.g. `Alignment("right", "top")`. |
 
