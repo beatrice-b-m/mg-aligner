@@ -89,6 +89,52 @@ def _component(value: Any) -> str:
     return text if re.fullmatch(r"[APRLHF]{1,3}", text) else ""
 
 
+class Manufacturer(_CoercibleEnum):
+    """Acquisition device manufacturer, for vendors with validated Field of View handling."""
+
+    HOLOGIC = "HOLOGIC"
+    GE = "GE"
+    UNKNOWN = "UNKNOWN"
+
+    @classmethod
+    def _coerce_unknown(cls, value: Any) -> "Manufacturer":
+        text = _normalized_text(value)
+        if "HOLOGIC" in text or "LORAD" in text:
+            return cls.HOLOGIC
+        if text == "GE" or text.startswith(("GE ", "GE,")):
+            return cls.GE
+        return cls.UNKNOWN
+
+
+class ProjectionSide(_CoercibleEnum):
+    """Which side of the breast a view is imaged from, parsed from View Position.
+
+    Reverse views (lateromedial and caudocranial) put the detector on the
+    opposite side, which mirrors the Field of View frame top to bottom.
+    """
+
+    STANDARD = "STANDARD"
+    REVERSE = "REVERSE"
+    UNKNOWN = "UNKNOWN"
+
+    @classmethod
+    def _coerce_unknown(cls, value: Any) -> "ProjectionSide":
+        text = _normalized_text(value)
+        if text in _REVERSE_VIEWS:
+            return cls.REVERSE
+        if text in _STANDARD_VIEWS:
+            return cls.STANDARD
+        return cls.UNKNOWN
+
+
+# Views checked against Patient Orientation on EMBED metadata.
+_STANDARD_VIEWS = {
+    "CC", "XCCL", "XCCM", "CV", "CCID", "RL", "RM",
+    "MLO", "MLOID", "ML", "MLID", "AT", "TAN", "ISO",
+}
+_REVERSE_VIEWS = {"LM", "LMO", "LMID", "FB", "SIO"}
+
+
 class FovRotation(_CoercibleEnum):
     """DICOM Field of View Rotation (0018,7032), in degrees."""
 

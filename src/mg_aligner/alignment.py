@@ -7,7 +7,14 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, List, Optional, Tuple
 
-from mg_aligner.metadata import FovHorizontalFlip, FovRotation, Laterality, PatientOrientation
+from mg_aligner.metadata import (
+    FovHorizontalFlip,
+    FovRotation,
+    Laterality,
+    Manufacturer,
+    PatientOrientation,
+    ProjectionSide,
+)
 
 Point = Tuple[float, float]
 Box = Tuple[float, float, float, float]
@@ -87,8 +94,23 @@ class Alignment:
         return cls(edges.get("chest_wall", Edge.UNKNOWN), edges.get("superior", Edge.UNKNOWN))
 
     @classmethod
-    def from_fov(cls, rotation: Any, horizontal_flip: Any, laterality: Any) -> "Alignment":
-        """Infer alignment from DICOM Field of View Rotation and Horizontal Flip."""
+    def from_fov(
+        cls,
+        rotation: Any,
+        horizontal_flip: Any,
+        laterality: Any,
+        view_position: Any,
+        manufacturer: Any,
+    ) -> "Alignment":
+        """Infer alignment from DICOM Field of View Rotation and Horizontal Flip.
+
+        Field of View values describe the image relative to the detector, so
+        the result depends on the vendor's detector frame and on which side
+        of the breast the view is taken from. Only Hologic and GE, and views
+        checked against Patient Orientation, are supported; anything else
+        gives an unknown alignment. Prefer :meth:`from_orientation` when
+        Patient Orientation is available.
+        """
 
         key = (
             Laterality.coerce(laterality),
@@ -96,7 +118,17 @@ class Alignment:
             FovHorizontalFlip.coerce(horizontal_flip),
         )
         edges = _FOV_ALIGNMENT.get(key)
-        return cls(*edges) if edges else cls.unknown()
+        vendor = Manufacturer.coerce(manufacturer)
+        side = ProjectionSide.coerce(view_position)
+        if not edges or vendor is Manufacturer.UNKNOWN or side is ProjectionSide.UNKNOWN:
+            return cls.unknown()
+
+        chest_wall, superior = edges
+        if vendor is Manufacturer.GE:  # detector frame is rotated 180° relative to Hologic
+            chest_wall, superior = _OPPOSITE[chest_wall], _OPPOSITE[superior]
+        if side is ProjectionSide.REVERSE:  # detector on the other side mirrors top to bottom
+            superior = _OPPOSITE[superior]
+        return cls(chest_wall, superior)
 
     @classmethod
     def from_metadata(cls, record: Any) -> "Alignment":
@@ -115,6 +147,8 @@ class Alignment:
             _field(record, "FieldOfViewRotation"),
             _field(record, "FieldOfViewHorizontalFlip"),
             laterality,
+            _field(record, "ViewPosition"),
+            _field(record, "Manufacturer"),
         )
 
     # Checks -----------------------------------------------------------------
@@ -221,6 +255,9 @@ _L, _R = Laterality.LEFT, Laterality.RIGHT
 _ROT0, _ROT180 = FovRotation.NONE, FovRotation.FULL
 _FLIP, _NOFLIP = FovHorizontalFlip.YES, FovHorizontalFlip.NO
 
+_OPPOSITE = {Edge.LEFT: Edge.RIGHT, Edge.RIGHT: Edge.LEFT, Edge.TOP: Edge.BOTTOM, Edge.BOTTOM: Edge.TOP}
+
+# Alignment for Hologic standard views; from_fov adjusts it for GE and reverse views.
 _FOV_ALIGNMENT = {
     (_L, _ROT180, _FLIP): (Edge.RIGHT, Edge.TOP),
     (_L, _ROT180, _NOFLIP): (Edge.LEFT, Edge.TOP),

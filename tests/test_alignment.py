@@ -92,28 +92,67 @@ def test_orientation_incomplete_or_malformed_is_not_known(orientation, lateralit
 
 
 def test_fov_unsupported_rotation_is_unknown():
-    assert not Alignment.from_fov(90, "NO", "L").is_known
+    assert not Alignment.from_fov(90, "NO", "L", "CC", "HOLOGIC, Inc.").is_known
+
+
+@pytest.mark.parametrize("view, manufacturer", [("CC", "iCAD, Inc."), ("CC", None), ("SPOT", "HOLOGIC, Inc."), (None, "HOLOGIC, Inc.")])
+def test_fov_unvalidated_vendor_or_view_is_unknown(view, manufacturer):
+    assert not Alignment.from_fov(0, "NO", "L", view, manufacturer).is_known
 
 
 def test_fov_flip_moves_only_the_chest_wall():
-    plain = Alignment.from_fov(0, "NO", "R")
-    flipped = Alignment.from_fov(0, "YES", "R")
+    plain = Alignment.from_fov(0, "NO", "R", "CC", "HOLOGIC, Inc.")
+    flipped = Alignment.from_fov(0, "YES", "R", "CC", "HOLOGIC, Inc.")
     assert plain.superior is flipped.superior
     assert plain.chest_wall is not flipped.chest_wall
+
+
+def test_fov_ge_is_hologic_rotated_180():
+    hologic = Alignment.from_fov(0, "NO", "L", "CC", "HOLOGIC, Inc.")
+    ge = Alignment.from_fov(0, "NO", "L", "CC", "GE MEDICAL SYSTEMS")
+    assert hologic.chest_wall is not ge.chest_wall
+    assert hologic.superior is not ge.superior
+
+
+def test_fov_reverse_view_mirrors_only_the_superior_edge():
+    standard = Alignment.from_fov(0, "NO", "L", "ML", "HOLOGIC, Inc.")
+    reverse = Alignment.from_fov(0, "NO", "L", "LM", "HOLOGIC, Inc.")
+    assert standard.chest_wall is reverse.chest_wall
+    assert standard.superior is not reverse.superior
+
+
+# (PatientOrientation, laterality, view, FOV rotation, FOV flip, manufacturer) seen in EMBED metadata.
+@pytest.mark.parametrize(
+    "orientation, laterality, view, rotation, flip, manufacturer",
+    [
+        (["A", "R"], "L", "CC", 0.0, "NO", "GE MEDICAL SYSTEMS"),
+        (["P", "FL"], "R", "MLO", 180.0, "NO", "GE HEALTHCARE"),
+        (["P", "F"], "L", "LM", 0.0, "NO", "HOLOGIC, Inc."),
+        (["P", "H"], "R", "LM", 0.0, "NO", "HOLOGIC, Inc."),
+        (["P", "F"], "L", "LM", 180.0, "NO", "GE MEDICAL SYSTEMS"),
+        (["P", "F"], "R", "MLO", 0.0, "NO", "HOLOGIC, Inc."),
+        (["A", "L"], "R", "CV", 0.0, "YES", "HOLOGIC, Inc."),
+    ],
+)
+def test_fov_matches_orientation_on_observed_metadata(orientation, laterality, view, rotation, flip, manufacturer):
+    by_orientation = Alignment.from_orientation(orientation, laterality)
+    assert by_orientation.is_known
+    assert Alignment.from_fov(rotation, flip, laterality, view, manufacturer) == by_orientation
 
 
 def test_from_metadata_prefers_orientation_then_falls_back_to_fov():
     record = {
         "ImageLateralityFinal": "R",
         "ViewPosition": "CC ",
+        "Manufacturer": "HOLOGIC, Inc.",
         "PatientOrientation": "['A', 'L']",
         "FieldOfViewRotation": 0.0,
-        "FieldOfViewHorizontalFlip": "NO",
+        "FieldOfViewHorizontalFlip": "YES",
     }
     assert Alignment.from_metadata(record).is_reference
 
     record["PatientOrientation"] = float("nan")
-    assert Alignment.from_metadata(record) == Alignment.from_fov(0.0, "NO", "R")
+    assert Alignment.from_metadata(record) == Alignment.from_fov(0.0, "YES", "R", "CC", "HOLOGIC, Inc.")
 
 
 def test_from_metadata_reads_attributes():

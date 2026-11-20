@@ -40,9 +40,9 @@ def status(alignment: Alignment) -> str:
     return "known"
 
 
-def compare(orientation, laterality, view, rotation, flip) -> dict:
+def compare(orientation, laterality, view, rotation, flip, manufacturer) -> dict:
     by_orientation = Alignment.from_orientation(orientation, laterality)
-    by_fov = Alignment.from_fov(rotation, flip, laterality)
+    by_fov = Alignment.from_fov(rotation, flip, laterality, view, manufacturer)
     o, f = status(by_orientation), status(by_fov)
     if o == "known" and f == "known":
         if by_orientation == by_fov:
@@ -75,7 +75,7 @@ def summarize(frame: pd.DataFrame) -> dict:
     # Each distinct combination of inputs is evaluated once, then weighted by its row count.
     combos = frame.groupby(INPUTS + GROUPS, dropna=False).size().rename("images").reset_index()
     results = pd.DataFrame(
-        [compare(*row) for row in combos[INPUTS].itertuples(index=False, name=None)],
+        [compare(*row) for row in combos[INPUTS + ["Manufacturer"]].itertuples(index=False, name=None)],
         index=combos.index,
     )
     combos = pd.concat([combos, results], axis=1)
