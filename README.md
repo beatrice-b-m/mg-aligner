@@ -54,7 +54,7 @@ box = alignment.realign_box(roi, height=ds.Rows, width=ds.Columns)
 
 | Method | Uses |
 | --- | --- |
-| `Alignment.from_metadata(record)` | Patient Orientation, falling back to Field of View attributes. Reads `ImageLateralityFinal` (EMBED), `ImageLaterality`, or `Laterality`. |
+| `Alignment.from_metadata(record)` | Patient Orientation, falling back to Field of View attributes. Reads `ImageLateralityFinal` (EMBED), `ImageLaterality`, or `Laterality`. For multi-frame objects such as DBT, it also reads Patient Orientation and Frame Laterality from the functional groups when the top-level attributes are missing. |
 | `Alignment.from_orientation(orientation, laterality)` | DICOM Patient Orientation, e.g. `["P", "L"]`, `"P\\L"`, or `"['P', 'L']"`, read by each value's principal (first) letter. Laterality is only needed for plain L/R values (CC-type views). |
 | `Alignment.from_fov(rotation, horizontal_flip, laterality, view_position, manufacturer)` | DICOM Field of View Rotation (0 or 180) and Horizontal Flip. These describe the image relative to the detector, so the result is corrected for the vendor (GE detectors are rotated 180° relative to Hologic) and for reverse views (LM, LMO, LMID, FB, SIO). Unvalidated manufacturers and views give an unknown alignment. |
 | `Alignment(chest_wall, superior)` | Explicit edges, e.g. `Alignment("right", "top")`. |

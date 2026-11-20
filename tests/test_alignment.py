@@ -166,3 +166,16 @@ def test_from_metadata_reads_attributes():
 
 def test_from_metadata_with_nothing_is_unknown():
     assert not Alignment.from_metadata({}).is_known
+
+
+def test_from_metadata_reads_multiframe_functional_groups():
+    # DBT objects keep orientation and laterality per frame rather than at the top level.
+    record = {
+        "SharedFunctionalGroupsSequence": [
+            {"FrameAnatomySequence": [{"FrameLaterality": "L"}]},
+        ],
+        "PerFrameFunctionalGroupsSequence": [
+            {"PatientOrientationInFrameSequence": [{"PatientOrientation": ["P", "R"]}]},
+        ],
+    }
+    assert Alignment.from_metadata(record) == Alignment(Edge.RIGHT, Edge.TOP)

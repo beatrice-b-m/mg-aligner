@@ -136,11 +136,20 @@ class Alignment:
 
         Uses Patient Orientation first and falls back to the Field of View
         attributes. Laterality is read from ``ImageLateralityFinal`` (EMBED),
-        then ``ImageLaterality``, then ``Laterality``.
+        then ``ImageLaterality``, then ``Laterality``. Multi-frame objects such
+        as DBT keep Patient Orientation and laterality per frame, so when the
+        top-level attributes are missing they are read from the first
+        shared or per-frame functional group.
         """
 
         laterality = _field(record, "ImageLateralityFinal", "ImageLaterality", "Laterality")
-        alignment = cls.from_orientation(_field(record, "PatientOrientation"), laterality)
+        if laterality is None:
+            laterality = _frame_field(record, "FrameAnatomySequence", "FrameLaterality")
+        orientation = _field(record, "PatientOrientation")
+        if orientation is None:
+            orientation = _frame_field(record, "PatientOrientationInFrameSequence", "PatientOrientation")
+
+        alignment = cls.from_orientation(orientation, laterality)
         if alignment.is_known:
             return alignment
         return cls.from_fov(
@@ -277,10 +286,7 @@ def _field(record: Any, *names: str) -> Any:
     """Return the first present, non-missing value among ``names``."""
 
     for name in names:
-        if hasattr(record, "get"):
-            value = record.get(name)
-        else:
-            value = getattr(record, name, None)
+        value = record.get(name) if hasattr(record, "get") else getattr(record, name, None)
         if value is None:
             continue
         if isinstance(value, float) and math.isnan(value):
@@ -288,4 +294,24 @@ def _field(record: Any, *names: str) -> Any:
         if isinstance(value, str) and not value.strip():
             continue
         return value
+    return None
+
+
+def _first_item(record: Any, sequence: str) -> Any:
+    items = _field(record, sequence)
+    try:
+        return items[0] if items is not None and len(items) else None
+    except TypeError:
+        return None
+
+
+def _frame_field(record: Any, macro: str, name: str) -> Any:
+    """Read ``name`` from a functional group macro, shared groups first, then frame 1."""
+
+    for groups in ("SharedFunctionalGroupsSequence", "PerFrameFunctionalGroupsSequence"):
+        group = _first_item(record, groups)
+        item = _first_item(group, macro) if group is not None else None
+        value = _field(item, name) if item is not None else None
+        if value is not None:
+            return value
     return None
